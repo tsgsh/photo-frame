@@ -1,0 +1,11 @@
+#jinja2: lstrip_blocks: True
+{# note: no [Install]\nWantedBy= statement, see the BindsTo= in the .service file #}
+[Unit]
+Description=Mount of {{ photo_frame_directory }} at {{ photo_frame_nfs_mount }} for {{ photo_frame_service_name }}
+After=network.target
+
+[Mount]
+What={{ photo_frame_nfs_source }}
+Where={{ photo_frame_nfs_mount }}
+Type=nfs
+Options={{ photo_frame_nfs_options }}

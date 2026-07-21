@@ -1,0 +1,12 @@
+---
+- name: Set up swayimg-based digital photo frame
+  hosts: photo_frame
+  become: true
+  gather_subset:
+  - devices
+  - distribution_major_version
+  - pkg_mgr
+  - '!min'
+  - '!system'
+  roles:
+  - photo_frame

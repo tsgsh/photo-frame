@@ -1,0 +1,23 @@
+---
+# photo_frame_compositor: wayland
+photo_frame_nfs_source:
+photo_frame_nfs_mount: /mnt/photos
+photo_frame_nfs_options: ro
+photo_frame_directory: "{{ photo_frame_nfs_mount if photo_frame_nfs_source != none else none }}"
+photo_frame_scale: optimal
+photo_frame_time: 30
+photo_frame_reload: 30
+# photo_frame_user and _group have defaults that start as none and are then set by getent
+photo_frame_user: "{{ ansible_facts.getent_passwd |
+                      dict2items |
+                      map(attribute='key') |
+                      first |
+                      default(none) }}"
+photo_frame_group: "{{ (ansible_facts.getent_passwd |
+                        dict2items |
+                        map(attribute='value') |
+                        flatten)[2] |
+                        default(none) }}"
+photo_frame_display: 'wayland-0'
+photo_frame_disable_nopasswd: "{{ photo_frame_is_pi }}"
+photo_frame_disable_wf_panel_pi: true

@@ -1,0 +1,191 @@
+---
+- name: Stat /usr/bin/raspinfo
+  register: photo_frame_r_raspinfo
+  tags:
+  - always
+  stat:
+    path: /usr/bin/raspinfo
+
+- name: Confirm that we have valid parameters
+  tags:
+  - assert
+  assert:
+    that:
+    - photo_frame_directory != none
+    - photo_frame_scale in photo_frame_scales
+    - photo_frame_time | int > 0
+
+- name: Confirm that the photo directory exists and is not empty
+  when: photo_frame_nfs_source == none
+  tags:
+  - check-directory
+  block:
+
+  - name: Check that the photo directory exists
+    register: photo_frame_r_stat
+    stat:
+      path: "{{ photo_frame_directory }}"
+
+  - name: Find JPEG files (with a minimum size of 100kB)
+    register: photo_frame_r_find
+    when: photo_frame_r_stat.stat.exists
+    find:
+      paths: "{{ photo_frame_directory }}"
+      patterns: '*.jpg,*.jpeg,*.JPG,*.JPEG'
+      recurse: true
+
+  - name: Confirm that the photo directory exists and is not empty
+    assert:
+      that:
+      - photo_frame_r_stat.stat.exists
+      - photo_frame_r_find.matched > 0
+
+- name: Install required software
+  tags:
+  - package
+  package:
+    name: "{{ photo_frame_packages }}"
+    state: present
+
+- name: "Create {{ photo_frame_nfs_mount }}"
+  when:
+  - photo_frame_nfs_source != none
+  - photo_frame_nfs_mount not in ansible_facts.mounts | map(attribute='mount')
+  tags:
+  - mount
+  file:
+    path: "{{ photo_frame_nfs_mount }}"
+    state: directory
+    mode: '0644'
+
+- name: "Query the passwd database for {{ text }}"
+  # this sets the defaults for photo_frame_user and photo_frame_group
+  tags:
+  - always
+  vars:
+    key: "{{ '1000' if photo_frame_user == none else photo_frame_user }}"
+    text: "{{ 'the user with UID 1000' if photo_frame_user == none else
+              ('user' + photo_frame_user) }}"
+  getent:
+    database: passwd
+    key: "{{ key }}"
+
+- name: "Remove sudoers nopasswd from {{ photo_frame_user }}"
+  when: photo_frame_disable_nopasswd
+  tags:
+  - nopasswd
+  block:
+
+  - name: Ensure that the user is part of the sudo group
+    user:
+      name: "{{ photo_frame_user }}"
+      groups:
+      - sudo
+      append: true
+
+  - name: Check which /etc/sudoers.d files exist
+    register: photo_frame_r_find
+    find:
+      paths: /etc/sudoers.d/
+
+  - name: Comment out any NOPASSWD entry for the user in each file in /etc/sudoers.d
+    loop: "{{ photo_frame_sudoers }}"
+    lineinfile:
+      path: "{{ item }}"
+      regexp: '^{{ photo_frame_user }} (.*) NOPASSWD:(.*)'
+      line: '#{{ photo_frame_user }} \1 NOPASSWD:\2'
+      state: present
+      backrefs: true
+      validate: '/usr/sbin/visudo -cf %s'
+
+- name: "Create {{ photo_frame_config_file | dirname }}"
+  file:
+    path: "{{ photo_frame_config_file | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: "Create {{ photo_frame_config_file }}"
+  notify: Enable and (re)start photo_frame service
+  tags:
+  - config
+  template:
+    src: "{{ photo_frame_config_template }}"
+    dest: "{{ photo_frame_config_file }}"
+    mode: '0644'
+
+- name: "Create {{ photo_frame_service_file }}"
+  notify: Enable and (re)start photo_frame service
+  tags:
+  - service
+  template:
+    src: "{{ photo_frame_service_template }}"
+    dest: "{{ photo_frame_service_file }}"
+    mode: '0644'
+
+- name: "Create {{ photo_frame_mount_file }}"
+  notify: Enable and (re)start photo_frame service
+  tags:
+  - mount
+  template:
+    src: "{{ photo_frame_mount_template }}"
+    dest: "{{ photo_frame_mount_file }}"
+    mode: '0644'
+
+- name: Disable wf-panel-pi and hide the mouse cursor
+  when:
+  - photo_frame_is_pi
+  - ansible_facts.distribution_major_version | int > 12
+  - photo_frame_disable_wf_panel_pi
+  tags:
+  - labwc
+  block:
+
+  - name: Ensure that the user labwc config directory exists
+    file:
+      path: "{{ photo_frame_labwc_config }}"
+      state: directory
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_group }}"
+      mode: '0755'
+
+  - name: "Comment out the wf-panel-pi entry in {{ photo_frame_labwc_etc_autostart }}"
+    # RasPiOS concatenates the autostarts and configs
+    # Comment out means converting to an echo command (not sure that # works or will continue to)
+    lineinfile:
+      path: "{{ photo_frame_labwc_etc_autostart }}"
+      regexp: '^(.*) /usr/bin/wf-panel-pi (.*)'
+      line: 'echo Disabled: \1 /usr/bin/wf-panel-pi \2'
+      state: present
+      backrefs: true
+      backup: true
+
+  - name: "Create the file {{ photo_frame_labwc_autostart }}"
+    notify: Restart graphical environment
+    # - Kill wf-panel-pi
+    template:
+      src: autostart.j2
+      dest: "{{ photo_frame_labwc_autostart }}"
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_group }}"
+      mode: '0644'
+      backup: true
+
+  - name: "Replace the file {{ photo_frame_labwc_rc_xml }}"
+    # Default file on trixie has a config for openbox, which we don't need
+    notify: Restart graphical environment
+    template:
+      src: rc.xml.j2
+      dest: "{{ photo_frame_labwc_rc_xml }}"
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_group }}"
+      mode: '0644'
+      backup: true
+
+  # - name: Determine the running wf-panel-pi process if it needs to be killed
+  #   when: photo_frame_r_stat.stat.exists and photo_frame_r_line.changed
+  #   register: photo_frame_r_pids
+  #   loop:
+  #   - '^/bin/sh /usr/bin/lwrespawn /usr/bin/wf-panel-pi$'
+  #   - '^/usr/bin/wf-panel-pi$'
+  #   community.general.pids:
+  #     pattern: "{{ item }}"

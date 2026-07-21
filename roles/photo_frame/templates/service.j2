@@ -1,0 +1,21 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Photo Frame service
+After=graphical.target
+After=remote-fs.target
+{% if photo_frame_nfs_mount != none %}
+BindsTo={{ photo_frame_mount_name }}.mount
+After={{ photo_frame_mount_name }}.mount
+{% endif %}
+
+[Service]
+User={{ photo_frame_user }}
+Group={{ photo_frame_group }}
+Environment=WAYLAND_DISPLAY={{ photo_frame_display }}
+Environment=XDG_RUNTIME_DIR=/run/user/{{ photo_frame_uid }}
+ExecStart={{ photo_frame_command }}
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,45 @@
+---
+photo_frame_command: "/usr/bin/swayimg  {{ photo_frame_directory }}"
+photo_frame_packages:
+- swayimg
+- wtype
+photo_frame_scales:
+- optimal
+- width
+- height
+- fit
+- fill
+- real
+photo_frame_service_name: photo-frame
+# Ansible doesn't yet implement a systemd-escape filter
+# https://github.com/ansible-collections/community.general/issues/2601
+# anything other than a hyphen is a corner case we aren't worrying about
+photo_frame_mount_name: "{{ photo_frame_nfs_mount[1:] |
+                            replace('-', '\\x2d') |
+                            replace('/', '-') }}"
+photo_frame_service_template: service.j2
+photo_frame_mount_template: mount.j2
+photo_frame_config_template: config.j2
+photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service_name }}.service"
+photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount_name }}.mount"
+photo_frame_config_file: /etc/xdg/swayimg/config
+photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists }}"
+photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"
+photo_frame_uid: "{{ (ansible_facts.getent_passwd |
+                      dict2items |
+                      map(attribute='value') |
+                      flatten)[1] }}"
+photo_frame_home: "{{ (ansible_facts.getent_passwd |
+                       dict2items |
+                       map(attribute='value') |
+                       flatten)[4] }}"
+photo_frame_panel_pids: "{{ photo_frame_r_pids.results | map(attribute='pids') | flatten }}"
+photo_frame_labwc_config: "{{ photo_frame_home + '/.config/labwc' }}"
+photo_frame_labwc_etc_autostart: /etc/xdg/labwc/autostart
+photo_frame_labwc_autostart: "{{ photo_frame_labwc_config + '/autostart' }}"
+photo_frame_labwc_rc_xml: "{{ photo_frame_labwc_config + '/rc.xml' }}"
+photo_frame_labwc_keybind: |  # https://github.com/labwc/labwc/pull/2633
+  <keybind key="A-W-h">
+    <action name="HideCursor" />
+    <action name="WarpCursor" x="-1" y="-1" />
+  </keybind>

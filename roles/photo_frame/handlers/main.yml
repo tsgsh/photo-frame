@@ -1,0 +1,47 @@
+---
+# - name: Reconfigure labwc
+#   become: true
+#   become_user: "{{ photo_frame_user }}"
+#   when: photo_frame_labwc_pid != none
+#   changed_when: true
+#   environment:
+#     LABWC_PID: "{{ photo_frame_labwc_pid }}"
+#   command:
+#     cmd: /usr/bin/labwc --reconfigure
+
+# - name: Cannot reconfigure labwc
+#   listen: Reconfigure labwc
+#   when: photo_frame_labwc_pid == none
+#   debug:
+#     msg: >-
+#       The PIDs assosciated with running labwc instances are:
+#       [{{ photo_frame_labwc_pids | join(', ') }}].
+#       There can be only one.
+
+# - name: Kill wf-panel-pi
+#   loop: "{{ photo_frame_panel_pids }}"
+#   changed_when: true
+#   command:
+#     cmd: "kill {{ item }}"
+
+# - name: Reload systemd
+#   systemd:
+#     daemon_reload: true
+
+- name: Restart graphical environment
+  loop:
+  - multi-user
+  - graphical
+  changed_when: true
+  command:
+    cmd: "systemctl isolate {{ item }}.target"  # noqa: command-instead-of-module
+
+- name: Enable and (re)start photo_frame service
+  listen:
+  - Enable and (re)start photo_frame service
+  - Restart graphical environment
+  systemd:
+    name: "{{ photo_frame_service_name }}.service"
+    state: restarted
+    enabled: true
+    daemon_reload: true
