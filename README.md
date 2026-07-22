@@ -164,8 +164,9 @@ photo_frame:
     ansible_timeout: 30
 ```
 
-An inventory for two hosts that use different sub-directories on the NAS server might
-be:
+An inventory for two hosts that use different sub-directories on the NAS server, with the scaling
+approach set to fill the screen (and therefore crop top or sides of the photo if it has a different
+aspect ratio) might be:
 ```YAML
 photo_frame:
   hosts:
@@ -175,5 +176,6 @@ photo_frame:
       photo_frame_directory: /mnt/photos/portrait
   vars:
     photo_frame_nfs_source: 'my-nas:/photos'
+    photo_frame_scale: fill
     ansible_timeout: 30
 ```
