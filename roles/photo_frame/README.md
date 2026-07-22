@@ -111,11 +111,14 @@ Default: true for Rasberry Pi systems, false otherwise
 
 #### `photo_frame_disable_wf_panel_pi`=false|true
 
-Disable `wf-panel-pi` by creating the file `~/.config/labwc/autostart` omitting the line
+Disable `wf-panel-pi` by modifying the file `/etc/config/labwc/autostart` modifying the line
 ```
 /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
 ```
-
+to 
+```
+echo Disabled: /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+```
 The mouse cursor is hidden by creating a key-binding to do this in `~/.config/labwc/rc.xml` and
 simulating that key press in `~/.config/labwc/autostart`.
 
