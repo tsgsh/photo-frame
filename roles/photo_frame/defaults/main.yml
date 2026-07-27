@@ -6,7 +6,6 @@ photo_frame_nfs_options: ro
 photo_frame_directory: "{{ photo_frame_nfs_mount if photo_frame_nfs_source != none else none }}"
 photo_frame_scale: optimal
 photo_frame_time: 30
-photo_frame_reload: 30
 # photo_frame_user and _group have defaults that start as none and are then set by getent
 photo_frame_user: "{{ ansible_facts.getent_passwd |
                       dict2items |
