@@ -23,7 +23,8 @@ photo_frame_config_template: config.j2
 photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service_name }}.service"
 photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount_name }}.mount"
 photo_frame_config_file: /etc/xdg/swayimg/config
-photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists }}"
+# need a constant default for role validation
+photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists | default(false) }}"
 photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"
 photo_frame_uid: "{{ (ansible_facts.getent_passwd |
                       dict2items |

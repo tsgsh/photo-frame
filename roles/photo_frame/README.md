@@ -17,6 +17,12 @@ therefore, covers part of the screen.
 
 ## Variables
 
+#### `photo_frame_display`=*string*
+
+The name of the Wayland display to use.
+
+Default: wayland-0
+
 #### `photo_frame_nfs_source`=*host*:*path*
 
 An NFS export to be mounted (presumably containing the photos to use but this is not checked).
@@ -32,7 +38,7 @@ The mount point for the NFS volume.
 
 Default: `none` (no NFS mount will be performed)
 
-#### `photo_frame_nfs_optopns`=*string*
+#### `photo_frame_nfs_options`=*string*
 
 The options for the NFS mount.
 
@@ -57,12 +63,6 @@ The group for the user running the desktop display
 
 Default: primary group of the user with UID 1000
 
-#### `photo_frame_display`=*string*
-
-The name of the Wayland display to use.
-
-Default: wayland-0
-
 <!-- #### `photo_frame_scale`=none|shrink|full|crop
 
 How to scale photos to fit the screen
@@ -77,7 +77,7 @@ Default: crop
 How to scale photos to fit the screen.
 
 The value of the [**scale**](https://manpages.debian.org/trixie/swayimg/swayimgrc.5.en.html#scale)
-setting in the **viewer** sectionof the `swayimg` configuration file (`/etc/xdg/swayimg/config`).
+setting in the **viewer** sectiono f the `swayimg` configuration file (`/etc/xdg/swayimg/config`).
 
 Default: optimal
 
