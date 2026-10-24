@@ -1,15 +1,15 @@
 ---
+# defaults needed for for anything based on registered variable to survive role validation
 photo_frame_command: "/usr/bin/swayimg  {{ photo_frame_directory }}"
-photo_frame_packages:
+photo_frame_packages: "{{ (photo_frame_sway_packages if photo_frame_sway else []) +
+                          photo_frame_base_packages }}"
+photo_frame_sway_packages:
+- sway
+- xwayland
+photo_frame_base_packages:
 - swayimg
 - wtype
-photo_frame_scales:
-- optimal
-- width
-- height
-- fit
-- fill
-- real
+photo_frame_sway_running: "{{ photo_frame_r_swaymsg_version.rc == 0 }}"
 photo_frame_service_name: photo-frame
 # Ansible doesn't yet implement a systemd-escape filter
 # https://github.com/ansible-collections/community.general/issues/2601
@@ -17,23 +17,40 @@ photo_frame_service_name: photo-frame
 photo_frame_mount_name: "{{ photo_frame_nfs_mount[1:] |
                             replace('-', '\\x2d') |
                             replace('/', '-') }}"
-photo_frame_service_template: service.j2
+photo_frame_service_template: photo-frame.service.j2
+photo_frame_getty_override_template: override.conf.j2
 photo_frame_mount_template: mount.j2
-photo_frame_config_template: config.j2
+photo_frame_sway_config_template: sway_config.j2
+photo_frame_swayimg_config_template: swayimg_config.j2
+photo_frame_sway_desktop_file: /usr/share/wayland-sessions/sway.desktop
 photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service_name }}.service"
+photo_frame_getty_override_file: /etc/systemd/system/getty@tty1.service.d/override.conf
 photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount_name }}.mount"
-photo_frame_config_file: /etc/xdg/swayimg/config
-photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists }}"
+photo_frame_sway_config_file: "{{ photo_frame_home }}/.config/sway/config"
+photo_frame_swayimg_config_file: "{{ photo_frame_home }}/.config/swayimg/config"
+photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists | default(false) }}"
+photo_frame_os: "{{ 'RasPiOS' if ansible_facts.distribution == 'Debian' and photo_frame_is_pi else
+                    ansible_facts.distribution }}"
 photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"
 photo_frame_uid: "{{ (ansible_facts.getent_passwd |
                       dict2items |
                       map(attribute='value') |
-                      flatten)[1] }}"
+                      flatten)[1] |
+                      default(none) }}"
+photo_frame_gid: "{{ (ansible_facts.getent_passwd |
+                      dict2items |
+                      map(attribute='value') |
+                      flatten)[2] |
+                      default(none) }}"
 photo_frame_home: "{{ (ansible_facts.getent_passwd |
                        dict2items |
                        map(attribute='value') |
-                       flatten)[4] }}"
-photo_frame_panel_pids: "{{ photo_frame_r_pids.results | map(attribute='pids') | flatten }}"
+                       flatten)[4] |
+                      default(none) }}"
+photo_frame_panel_pids: "{{ photo_frame_r_pids.results |
+                            map(attribute='pids') |
+                            flatten |
+                            default(none) }}"
 photo_frame_labwc_config: "{{ photo_frame_home + '/.config/labwc' }}"
 photo_frame_labwc_etc_autostart: /etc/xdg/labwc/autostart
 photo_frame_labwc_autostart: "{{ photo_frame_labwc_config + '/autostart' }}"
@@ -43,3 +60,9 @@ photo_frame_labwc_keybind: |  # https://github.com/labwc/labwc/pull/2633
     <action name="HideCursor" />
     <action name="WarpCursor" x="-1" y="-1" />
   </keybind>
+photo_frame_graphical_target_state: "{{ photo_frame_r_list_units.stdout |
+                                        community.general.jc('systemctl') |
+                                        selectattr('unit', 'eq', 'graphical.target') |
+                                        map(attribute='active') |
+                                        first |
+                                        default(none) }}"

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Sway
+Comment=Wayland compositor
+Exec=sway
+Type=Application

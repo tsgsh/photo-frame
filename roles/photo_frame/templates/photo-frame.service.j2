@@ -7,6 +7,9 @@ After=remote-fs.target
 BindsTo={{ photo_frame_mount_name }}.mount
 After={{ photo_frame_mount_name }}.mount
 {% endif %}
+{% if photo_frame_sway %}
+After=getty@tty1.service
+{% endif %}
 
 [Service]
 User={{ photo_frame_user }}
@@ -14,7 +17,7 @@ Group={{ photo_frame_group }}
 Environment=WAYLAND_DISPLAY={{ photo_frame_display }}
 Environment=XDG_RUNTIME_DIR=/run/user/{{ photo_frame_uid }}
 ExecStart={{ photo_frame_command }}
-Type=simple
+Type=exec
 Restart=always
 
 [Install]

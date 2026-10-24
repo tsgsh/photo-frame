@@ -1,40 +1,26 @@
 ---
-# - name: Reconfigure labwc
-#   become: true
-#   become_user: "{{ photo_frame_user }}"
-#   when: photo_frame_labwc_pid != none
-#   changed_when: true
-#   environment:
-#     LABWC_PID: "{{ photo_frame_labwc_pid }}"
-#   command:
-#     cmd: /usr/bin/labwc --reconfigure
+- name: Reboot
+  listen: Sway handler
+  when: not photo_frame_sway_running | default(true)
+  reboot:
 
-# - name: Cannot reconfigure labwc
-#   listen: Reconfigure labwc
-#   when: photo_frame_labwc_pid == none
-#   debug:
-#     msg: >-
-#       The PIDs assosciated with running labwc instances are:
-#       [{{ photo_frame_labwc_pids | join(', ') }}].
-#       There can be only one.
+- name: End play  # no need to run any remaining handlers after a reboot
+  listen: Sway handler
+  when: not photo_frame_sway_running | default(true)
+  meta: end_play
 
-# - name: Kill wf-panel-pi
-#   loop: "{{ photo_frame_panel_pids }}"
-#   changed_when: true
-#   command:
-#     cmd: "kill {{ item }}"
-
-# - name: Reload systemd
-#   systemd:
-#     daemon_reload: true
-
-- name: Restart graphical environment
-  loop:
-  - multi-user
-  - graphical
+- name: Reload sway
+  listen: Sway handler
+  when: photo_frame_sway_running | default(false)
   changed_when: true
+  become: true
+  become_user: "{{ photo_frame_user }}"
   command:
-    cmd: "systemctl isolate {{ item }}.target"  # noqa: command-instead-of-module
+    cmd: /usr/bin/swaymsg reload
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: true
 
 - name: Enable and (re)start photo_frame service
   listen:

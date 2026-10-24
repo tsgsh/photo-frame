@@ -1,0 +1,167 @@
+---
+argument_specs:
+  main:
+    short_description: Main entrypoint for the photo_frame role
+    description: >-
+      This role configures **swayimg** and, optionally, **sway** as a Wayland compositor to display
+      photos on a monitor or other display screen.
+    version_added: '0.2.0'
+    author:
+    - Steve Hayes
+    options:
+      photo_frame_sway:
+        type: bool
+        description: >-
+          Use the **sway** Wayland compositor.
+
+
+          This can only be done on a distribution without a grapical installation (specifically
+          where the `systemd` `graphical.target` has not been defined).
+
+
+          This will install **sway** if required and enable it for the user defined by
+          `photo_frame_user`.
+          **sway**  will run at the `systemd` `multi-user.target`: no `graphical.target` will be
+          created.
+
+
+          The system may be automatically rebooted to configure **sway**.
+
+
+          Default: `true` if `graphical.target` does not exist in `systemd` otherwise `false`
+      photo_frame_sway_output:
+        type: str
+        default: HDMI-A-1
+        description: >-
+          The physical video output to for `photo_frame_display`
+
+
+          Ignored if `photo_frame_sway` is false
+      photo_frame_sway_transform:
+        type: str
+        choices:
+        - normal
+        - '90'
+        - '180'
+        - '270'
+        - flipped
+        - flipped-90
+        - flipped-180
+        - flipped-270
+        default: normal
+        description: >-
+          Normally, this would be used for a portrait display, specifying either 90&deg; or 270&deg;
+          rotation.
+          The angle is measured in a clockwise direction, so for a physical 90&deg; clockwise
+          rotation of the display, the value should be set to `'270'` to compensate
+
+          The values 90, 180 and 270 must be expressed as strings not as integers.
+
+          Ignored if `photo_frame_sway` is false
+      photo_frame_display:
+        type: str
+        default: wayland-0
+        description: The name of the Wayland display to use.
+      photo_frame_nfs_source:
+        type: str
+        description: >-
+          An NFS export to be mounted (presumably containing the photos to use but this is not
+          checked).
+          This will be mounted using a `systemd` mount unit that is bound to the the systemd unit
+          that runs `swayimg` to avoid sequencing issues with the mount and the service startup.
+
+
+          Default: no NFS mount will be performed
+      photo_frame_nfs_mount:
+        type: str
+        default: /mnt/photos
+        description: The mount point for the NFS volume.
+      photo_frame_nfs_options:
+        type: str
+        default: ro
+        description: The options for the NFS mount.
+      photo_frame_directory:
+        type: str
+        default: "{{ photo_frame_nfs_mount if photo_frame_nfs_source != none else none }}"
+        description: >-
+          The directory containing the photos to show
+
+
+          Default: *`pnoto_frame_nfs_mount`* if *`pnoto_frame_nfs_source`* is defined,
+          otherwise `none` (which is not valid)
+      photo_frame_scale:
+        type: str
+        choices:
+        - optimal
+        - width
+        - height
+        - fit
+        - fill
+        - real
+        default: optimal
+        description: >-
+          How to scale photos to fit the screen.
+
+
+          The value of the
+          [**scale**](https://manpages.debian.org/trixie/swayimg/swayimgrc.5.en.html#scale)
+          setting in the **viewer** sectionof the `swayimg` configuration file
+          (`/etc/xdg/swayimg/config`).
+      photo_frame_time:
+        type: float
+        default: 30.0
+        description: >-
+          The value of the
+          [**slideshow_time**](https://manpages.debian.org/trixie/swayimg/swayimgrc.5.en.html#slideshow_time)
+          setting in the **viewer** section of the `swayimg` configuration file
+          (`/etc/xdg/swayimg/config`).
+      photo_frame_user:
+        type: str
+        description: >-
+          The name of the user running the desktop display
+
+
+          Default: user with UID 1000
+      photo_frame_group:
+        type: str
+        description: >-
+          The group for the user running the desktop display
+
+
+          Default: primary group of the user with UID 1000
+      photo_frame_disable_nopasswd:
+        type: bool
+        default: "{{ photo_frame_is_pi }}"
+        description: >-
+          Disable passwordless `sudo` for the user displaying the photos by commenting out any lines
+          in files in `/etc/sudoers.d` that apply to that user and have `NOPASSWD:` in them.
+
+
+          By default, on RasPiOS, the default login user (*uid* = 1000) is a member of the `sudo`
+          group, which has `sudo` access to all commands (with a password prompt) in `/etc/sudoers`,
+          so this isn't dangerous.
+
+          Default: true for Rasberry Pi systems, false otherwise
+      photo_frame_disable_wf_panel_pi:
+        type: bool
+        default: true
+        description: >-
+          Disable `wf-panel-pi` if using the `labwc` Wayland compositor (RasPiOS).
+
+
+          Disable `wf-panel-pi` by modifying the file `/etc/config/labwc/autostart` modifying the
+          line
+          ```
+          /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+          ```
+          to
+          ```
+          echo Disabled: /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+          ```
+          The mouse cursor is hidden by creating a key-binding to do this in
+          `~/.config/labwc/rc.xml` and simulating that key press in
+          `~/.config/labwc/autostart`.
+
+
+          This has no effect if the target host is not running RasPiIS or the installed OS is
+          RasPiOS 'Bookworm' or earlier.

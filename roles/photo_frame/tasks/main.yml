@@ -12,7 +12,6 @@
   assert:
     that:
     - photo_frame_directory != none
-    - photo_frame_scale in photo_frame_scales
     - photo_frame_time | int > 0
 
 - name: Confirm that the photo directory exists and is not empty
@@ -47,17 +46,6 @@
     name: "{{ photo_frame_packages }}"
     state: present
 
-- name: "Create {{ photo_frame_nfs_mount }}"
-  when:
-  - photo_frame_nfs_source != none
-  - photo_frame_nfs_mount not in ansible_facts.mounts | map(attribute='mount')
-  tags:
-  - mount
-  file:
-    path: "{{ photo_frame_nfs_mount }}"
-    state: directory
-    mode: '0644'
-
 - name: "Query the passwd database for {{ text }}"
   # this sets the defaults for photo_frame_user and photo_frame_group
   tags:
@@ -69,6 +57,129 @@
   getent:
     database: passwd
     key: "{{ key }}"
+
+- name: Use sway as the Window manager
+  when: photo_frame_sway
+  tags:
+  - sway
+  block:
+
+  # sway runs at the multi-user.target not the graphical.target
+  - name: Get the current systemd target state
+    check_mode: false
+    block:
+
+    - name: Get the state of the graphical.target
+      register: photo_frame_r_list_units
+      changed_when: false
+      command:  # noqa: command-instead-of-module
+        cmd: systemctl list-units --type target --state active
+
+    - name: Confirm that graphical.target is undefined
+      assert:
+        that: photo_frame_graphical_target_state == none
+        fail_msg: >-
+          Sway cannot be installed on top of a graphical installation of {{ photo_frame_os }}
+        quiet: true
+
+  - name: Check if we already have a sway installation
+    block:
+
+    - name: Check if we already have a sway desktop file
+      register: photo_frame_r_stat_desktop
+      stat:
+        path: "{{ photo_frame_sway_desktop_file }}"
+
+    - name: Check whether sway is running
+      register: photo_frame_r_swaymsg_version
+      changed_when: false
+      failed_when: photo_frame_r_swaymsg_version.rc not in [0, 1]
+      command:
+        cmd: /usr/bin/swaymsg --type get-version --quiet
+
+  - name: If we don't have the desktop already then we have to check whether we can add it
+    when: not photo_frame_r_stat_desktop.stat.exists
+    block:
+
+
+    - name: Check that there isn't a pre-existing graphical installation
+      register: photo_frame_r_stat_sessions
+      loop:
+      - xessions
+      - wayland-sessions
+      stat:
+        path: "{{ '/usr/share/' + item }}"
+
+    - name: Cannot install sway unless there is no pre-existing graphical environment
+      assert:
+        that:
+        - not photo_frame_r_stat_sessions.results.0.stat.exists
+        - not photo_frame_r_stat_sessions.results.1.stat.exists
+        fail_msg: >-
+          Cannot install sway as a window manager if either of /usr/share/xessions or
+          /usr/share/wayland-sessions exists
+        quiet: true
+
+  - name: Ensure that the wayland-sessions directory exists
+    file:
+      path: "{{ photo_frame_sway_desktop_file | dirname }}"
+      state: directory
+      mode: '0755'
+
+  - name: Create the sway desktop file
+    copy:
+      src: "{{ photo_frame_sway_desktop_file | basename }}"
+      dest: "{{ photo_frame_sway_desktop_file }}"
+      mode: '0644'
+
+  - name: Create a directory for the systemd getty override.conf file
+    file:
+      path: "{{ photo_frame_getty_override_file | dirname }}"
+      state: directory
+      mode: '0755'
+
+  - name: Create the systemd getty override.conf file
+    notify: Reload systemd
+    template:
+      src: "{{ photo_frame_getty_override_template }}"
+      dest: "{{ photo_frame_getty_override_file }}"
+      mode: '0644'
+
+  - name: "Create {{ photo_frame_ooboooooig_file | dirname }}"
+    file:
+      path: "{{ photo_frame_sway_config_file | dirname }}"
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_gid }}"
+      state: directory
+      mode: '0755'
+
+  - name: "Create {{ photo_frame_sway_config_file }}"
+    notify: Sway handler  # either 'Reload sway' or 'Reboot' depending on photo_frame_sway_running
+    tags:
+    - config
+    template:
+      src: "{{ photo_frame_sway_config_template }}"
+      dest: "{{ photo_frame_sway_config_file }}"
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_gid }}"
+      mode: '0644'
+
+  - name: Append the .profile entries
+    notify: Reboot
+    blockinfile:
+      path: "{{ photo_frame_home + '/.profile' }}"
+      block: "{{ lookup('file', role_path + '/files/.profile') }}"
+
+- name: "Create {{ photo_frame_nfs_mount }}"
+  when:
+  - photo_frame_nfs_source != none
+  - photo_frame_nfs_mount not in ansible_facts.mounts | map(attribute='mount')
+  tags:
+  - mount
+  file:
+    path: "{{ photo_frame_nfs_mount }}"
+    state: directory
+    mode: '0644'
 
 - name: "Remove sudoers nopasswd from {{ photo_frame_user }}"
   when: photo_frame_disable_nopasswd
@@ -98,19 +209,23 @@
       backrefs: true
       validate: '/usr/sbin/visudo -cf %s'
 
-- name: "Create {{ photo_frame_config_file | dirname }}"
+- name: "Create {{ photo_frame_swayimg_config_file | dirname }}"
   file:
-    path: "{{ photo_frame_config_file | dirname }}"
+    path: "{{ photo_frame_swayimg_config_file | dirname }}"
     state: directory
+    owner: "{{ photo_frame_user }}"
+    group: "{{ photo_frame_gid }}"
     mode: '0755'
 
-- name: "Create {{ photo_frame_config_file }}"
+- name: "Create {{ photo_frame_swayimg_config_file }}"
   notify: Enable and (re)start photo_frame service
   tags:
   - config
   template:
-    src: "{{ photo_frame_config_template }}"
-    dest: "{{ photo_frame_config_file }}"
+    src: "{{ photo_frame_swayimg_config_template }}"
+    dest: "{{ photo_frame_swayimg_config_file }}"
+    owner: "{{ photo_frame_user }}"
+    group: "{{ photo_frame_gid }}"
     mode: '0644'
 
 - name: "Create {{ photo_frame_service_file }}"
@@ -136,6 +251,7 @@
   - photo_frame_is_pi
   - ansible_facts.distribution_major_version | int > 12
   - photo_frame_disable_wf_panel_pi
+  - not photo_frame_sway
   tags:
   - labwc
   block:

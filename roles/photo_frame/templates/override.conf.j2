@@ -1,0 +1,4 @@
+[Service]
+{# Clear current Exec Start #}
+ExecStart=
+ExecStart=-/sbin/agetty --autologin {{ photo_frame_user }} --noclear %I $TERM
