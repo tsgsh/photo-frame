@@ -48,7 +48,8 @@ Default: ro
 
 The directory containing the photos to show
 
-Default: *`pnoto_frame_nfs_mount`* if *`pnoto_frame_nfs_source`* is defined,
+Default: `/var/local/photo-frame` if `pnoto_frame_rsync` is true,
+else *`pnoto_frame_nfs_mount`* if `pnoto_frame_nfs_source` is defined,
 otherwise `none` (which is not valid)
 
 #### `photo_frame_user`=*string*

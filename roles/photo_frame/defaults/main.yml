@@ -3,7 +3,15 @@
 photo_frame_nfs_source:
 photo_frame_nfs_mount: /mnt/photos
 photo_frame_nfs_options: ro
-photo_frame_directory: "{{ photo_frame_nfs_mount if photo_frame_nfs_source != none else none }}"
+photo_frame_directory: >-
+  {{
+    '/var/local/' ~ photo_frame_service if photo_frame_rsync else
+    photo_frame_nfs_mount if photo_frame_nfs_source != none else
+    none
+  }}
+photo_frame_subdirectory:
+photo_frame_rsync: false
+photo_frame_rsync_timer:
 photo_frame_scale: optimal
 photo_frame_time: 30
 # photo_frame_user and _group have defaults that start as none and are then set by getent

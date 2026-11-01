@@ -1,5 +1,5 @@
 ---
-photo_frame_command: "/usr/bin/swayimg  {{ photo_frame_directory }}"
+photo_frame_command: "/usr/bin/swayimg {{ photo_frame_dir_path }}"
 photo_frame_packages:
 - swayimg
 - wtype
@@ -10,19 +10,51 @@ photo_frame_scales:
 - fit
 - fill
 - real
-photo_frame_service_name: photo-frame
+
+# paths that we will use; these two may be the same
+photo_frame_nfs_path: "{{ [photo_frame_nfs_mount, photo_frame_subdirectory] |
+                          reject('eq', none) |
+                          join('/') }}"
+photo_frame_dir_path: "{{ [photo_frame_directory, photo_frame_subdirectory] |
+                          reject('eq', none) |
+                          join('/') }}"
+
+# systemd variables
+photo_frame_service: photo-frame
 # Ansible doesn't yet implement a systemd-escape filter
 # https://github.com/ansible-collections/community.general/issues/2601
 # anything other than a hyphen is a corner case we aren't worrying about
-photo_frame_mount_name: "{{ photo_frame_nfs_mount[1:] |
+photo_frame_mount: "{{ photo_frame_nfs_mount[1:] |
                             replace('-', '\\x2d') |
                             replace('/', '-') }}"
+photo_frame_rsync_service: photo-frame-rsync
+photo_frame_restart_service: photo-frame-restart
+photo_frame_config_template: config.j2
 photo_frame_service_template: service.j2
 photo_frame_mount_template: mount.j2
-photo_frame_config_template: config.j2
-photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service_name }}.service"
-photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount_name }}.mount"
+photo_frame_rsync_service_template: rsync_service.j2
+photo_frame_rsync_timer_template: rsync_timer.j2
+photo_frame_rsync_sh_template: rsync_sh.j2
+photo_frame_restart_service_template: restart_service.j2
+photo_frame_restart_path_template: restart_path.j2
 photo_frame_config_file: /etc/xdg/swayimg/config
+photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service }}.service"
+photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount }}.mount"
+photo_frame_rsync_service_file: "/etc/systemd/system/{{ photo_frame_rsync_service }}.service"
+photo_frame_rsync_sh_file: "/usr/local/libexec/{{ photo_frame_rsync_service }}.sh"
+photo_frame_rsync_timer_file: "/etc/systemd/system/{{ photo_frame_rsync_service }}.timer"
+photo_frame_rsync_touch_file: "/run/{{ photo_frame_rsync_service }}/changed"
+photo_frame_restart_service_file: "/etc/systemd/system/{{ photo_frame_restart_service }}.service"
+photo_frame_restart_path_file: "/etc/systemd/system/{{ photo_frame_restart_service }}.path"
+photo_frame_rsync_command: >-
+  rsync
+  --archive
+  --itemize-changes
+  --delete
+  --out-format='%i'
+  {{ photo_frame_nfs_path }}/
+  {{ photo_frame_dir_path }}/
+
 # need a constant default for role validation
 photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists | default(false) }}"
 photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"

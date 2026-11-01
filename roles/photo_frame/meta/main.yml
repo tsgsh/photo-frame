@@ -36,9 +36,28 @@ argument_specs:
         description: >-
           The directory containing the photos to show
 
-
-          Default: *`pnoto_frame_nfs_mount`* if *`pnoto_frame_nfs_source`* is defined,
+          Default: `/var/local/photo-frame` if `pnoto_frame_rsync` is true,
+          else *`pnoto_frame_nfs_mount`* if `pnoto_frame_nfs_source` is defined,
           otherwise `none` (which is not valid)
+      photo_frame_rsync:
+        type: bool
+        default: false
+        description: >-
+          Whether to copy files from the directory defined by photo_frame_nfs_mount to the
+          directory defined by photo_frame_directory.
+          If true, the photos will be copied from the NFS mount to the local directory for local
+          access, othersiwe, photos will be accessed using NFS.
+
+
+          Raspberry Pi Zeros and original Raspberry Pi Models A/B may struggle to serve photos
+          from an NFS share, eventually becomming unresponsive and requiring a reboot.
+          Consider enabling this option.
+      photo_frame_rsync_timer:
+        type: str
+        description: >-
+          When photo_frame_rsync true, if this is defined (and not null), create a systemd timer
+          using this string as a timer specification to regularly re-rsync the local directory
+          from the NFS mount.
       photo_frame_user:
         type: str
         description: >-

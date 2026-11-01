@@ -1,0 +1,8 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Restart {{ photo_frame_service }}.service after rsync updates to {{ photo_frame_directory }}
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart {{ photo_frame_service }}.service
+ExecStartPost=/usr/bin/rm -f {{ photo_frame_rsync_touch_file }}

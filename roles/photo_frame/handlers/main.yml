@@ -24,9 +24,24 @@
 #   command:
 #     cmd: "kill {{ item }}"
 
-# - name: Reload systemd
-#   systemd:
-#     daemon_reload: true
+- name: Enable and start mount service
+  systemd:
+    name: "{{ photo_frame_mount }}.mount"
+    state: started
+    enabled: true
+    masked: false
+
+- name: Initial rsync
+  register: photo_frame_r_rsync
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  changed_when: photo_frame_r_rsync.stdout_lines | count > 0
+  command:
+    cmd: "{{ photo_frame_rsync_command }}"
+
+- name: Reload systemd  # do it once only rather than per file
+  systemd:
+    daemon_reload: true
 
 - name: Restart graphical environment
   loop:
@@ -41,7 +56,33 @@
   - Enable and (re)start photo_frame service
   - Restart graphical environment
   systemd:
-    name: "{{ photo_frame_service_name }}.service"
+    name: "{{ photo_frame_service }}.service"
     state: restarted
     enabled: true
-    daemon_reload: true
+    masked: false
+
+- name: Enable rsync service
+  systemd:
+    name: "{{ photo_frame_restart_service }}.path"
+    enabled: true
+    masked: false
+
+- name: Enable and start rsync timer
+  systemd:
+    name: "{{ photo_frame_rsync_service }}.timer"
+    state: started
+    enabled: true
+    masked: false
+
+- name: Enable restart service
+  systemd:
+    name: "{{ photo_frame_restart_service }}.path"
+    enabled: true
+    masked: false
+
+- name: Enable and start restart path
+  systemd:
+    name: "{{ photo_frame_restart_service }}.path"
+    state: started
+    enabled: true
+    masked: false

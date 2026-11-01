@@ -1,0 +1,10 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Watch for rsync updates to {{ photo_frame_directory }}
+
+[Path]
+PathChanged={{ photo_frame_rsync_touch_file }}
+Unit={{ photo_frame_restart_service }}.service
+
+[Install]
+WantedBy=graphical.target

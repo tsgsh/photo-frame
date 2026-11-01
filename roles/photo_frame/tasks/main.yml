@@ -12,11 +12,24 @@
   assert:
     that:
     - photo_frame_directory != none
+    - photo_frame_nfs_source != none if photo_frame_rsync else true
     - photo_frame_scale in photo_frame_scales
     - photo_frame_time | int > 0
 
+- name: "Query the passwd database for {{ text }}"
+  # this sets the defaults for photo_frame_user and photo_frame_group
+  tags:
+  - always
+  vars:
+    key: "{{ '1000' if photo_frame_user == none else photo_frame_user }}"
+    text: "{{ 'the user with UID 1000' if photo_frame_user == none else
+              ('user' + photo_frame_user) }}"
+  getent:
+    database: passwd
+    key: "{{ key }}"
+
 - name: Confirm that the photo directory exists and is not empty
-  when: photo_frame_nfs_source == none
+  when: photo_frame_nfs_source == none and not photo_frame_rsync
   tags:
   - check-directory
   block:
@@ -40,6 +53,16 @@
       - photo_frame_r_stat.stat.exists
       - photo_frame_r_find.matched > 0
 
+- name: Ensure that the photo directory exists and is owned by the correct user for rsync
+  when: photo_frame_rsync
+  notify: Initial rsync
+  file:
+    path: "{{ photo_frame_dir_path }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ photo_frame_user }}"
+    group: "{{ photo_frame_group }}"
+
 - name: Install required software
   tags:
   - package
@@ -57,18 +80,6 @@
     path: "{{ photo_frame_nfs_mount }}"
     state: directory
     mode: '0644'
-
-- name: "Query the passwd database for {{ text }}"
-  # this sets the defaults for photo_frame_user and photo_frame_group
-  tags:
-  - always
-  vars:
-    key: "{{ '1000' if photo_frame_user == none else photo_frame_user }}"
-    text: "{{ 'the user with UID 1000' if photo_frame_user == none else
-              ('user' + photo_frame_user) }}"
-  getent:
-    database: passwd
-    key: "{{ key }}"
 
 - name: "Remove sudoers nopasswd from {{ photo_frame_user }}"
   when: photo_frame_disable_nopasswd
@@ -105,7 +116,9 @@
     mode: '0755'
 
 - name: "Create {{ photo_frame_config_file }}"
-  notify: Enable and (re)start photo_frame service
+  notify:
+  - Reload systemd
+  - Enable and (re)start photo_frame service
   tags:
   - config
   template:
@@ -113,8 +126,21 @@
     dest: "{{ photo_frame_config_file }}"
     mode: '0644'
 
+- name: "Create {{ photo_frame_mount_file }}"
+  notify:
+  - Reload systemd
+  - Enable and start mount service
+  tags:
+  - mount
+  template:
+    src: "{{ photo_frame_mount_template }}"
+    dest: "{{ photo_frame_mount_file }}"
+    mode: '0644'
+
 - name: "Create {{ photo_frame_service_file }}"
-  notify: Enable and (re)start photo_frame service
+  notify:
+  - Reload systemd
+  - Enable and (re)start photo_frame service
   tags:
   - service
   template:
@@ -122,14 +148,57 @@
     dest: "{{ photo_frame_service_file }}"
     mode: '0644'
 
-- name: "Create {{ photo_frame_mount_file }}"
-  notify: Enable and (re)start photo_frame service
+- name: Block for rsync
+  when: photo_frame_rsync
+  notify:
+  - Initial rsync # reasonable assumption that if any of these change then we need rsync, and v.v.
+  - Reload systemd
+  - Enable and (re)start photo_frame service
   tags:
-  - mount
-  template:
-    src: "{{ photo_frame_mount_template }}"
-    dest: "{{ photo_frame_mount_file }}"
-    mode: '0644'
+  - rsync
+  block:
+
+  - name: "Create {{ photo_frame_rsync_service_file }}"
+    notify: Enable rsync service
+    template:
+      src: "{{ photo_frame_rsync_service_template }}"
+      dest: "{{ photo_frame_rsync_service_file }}"
+      mode: '0644'
+
+  - name: "Create {{ photo_frame_rsync_sh_file }}"
+    template:
+      src: "{{ photo_frame_rsync_sh_template }}"
+      dest: "{{ photo_frame_rsync_sh_file }}"
+      mode: '0755'
+
+  - name: "Create {{ photo_frame_rsync_timer_file }}"
+    notify: Enable and start rsync timer
+    template:
+      src: "{{ photo_frame_rsync_timer_template }}"
+      dest: "{{ photo_frame_rsync_timer_file }}"
+      mode: '0644'
+
+  - name: "Create {{ photo_frame_rsync_touch_file | dirname }}"
+    file:
+      path: "{{ photo_frame_rsync_touch_file | dirname }}"
+      state: directory
+      mode: '0755'
+      owner: "{{ photo_frame_user }}"
+      group: "{{ photo_frame_group }}"
+
+  - name: "Create {{ photo_frame_restart_service_file }}"
+    notify: Enable restart service
+    template:
+      src: "{{ photo_frame_restart_service_template }}"
+      dest: "{{ photo_frame_restart_service_file }}"
+      mode: '0644'
+
+  - name: "Create {{ photo_frame_restart_path_file }}"
+    notify: Enable and start restart path
+    template:
+      src: "{{ photo_frame_restart_path_template }}"
+      dest: "{{ photo_frame_restart_path_file }}"
+      mode: '0644'
 
 - name: Disable wf-panel-pi and hide the mouse cursor
   when:

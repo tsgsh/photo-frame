@@ -3,9 +3,9 @@
 Description=Photo Frame service
 After=graphical.target
 After=remote-fs.target
-{% if photo_frame_nfs_mount != none %}
-BindsTo={{ photo_frame_mount_name }}.mount
-After={{ photo_frame_mount_name }}.mount
+{% if photo_frame_nfs_mount != none and not photo_frame_rsync %}
+BindsTo={{ photo_frame_mount }}.mount
+After={{ photo_frame_mount }}.mount
 {% endif %}
 
 [Service]
