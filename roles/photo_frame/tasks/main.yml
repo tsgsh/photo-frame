@@ -28,6 +28,13 @@
     database: passwd
     key: "{{ key }}"
 
+- name: Get the labwc PID
+  register: photo_frame_r_pid
+  tags:
+  - always
+  community.general.pids:
+    name: labwc
+
 - name: Confirm that the photo directory exists and is not empty
   when: photo_frame_nfs_source == none and not photo_frame_rsync
   tags:
@@ -56,6 +63,8 @@
 - name: Ensure that the photo directory exists and is owned by the correct user for rsync
   when: photo_frame_rsync
   notify: Initial rsync
+  tags:
+  - target-directory
   file:
     path: "{{ photo_frame_dir_path }}"
     state: directory
@@ -200,61 +209,71 @@
       dest: "{{ photo_frame_restart_path_file }}"
       mode: '0644'
 
-- name: Disable wf-panel-pi and hide the mouse cursor
-  when:
-  - photo_frame_is_pi
-  - ansible_facts.distribution_major_version | int > 12
-  - photo_frame_disable_wf_panel_pi
-  tags:
-  - labwc
+- name: Disable wf-panel-pi, hide the mouse cursor and set a black desktop background
+  when: photo_frame_is_labwc
   block:
 
-  - name: Ensure that the user labwc config directory exists
-    file:
-      path: "{{ photo_frame_labwc_config }}"
-      state: directory
-      owner: "{{ photo_frame_user }}"
-      group: "{{ photo_frame_group }}"
-      mode: '0755'
+  - name: Disable wf-panel-pi and hide the mouse cursor
+    when: photo_frame_disable_desktop
+    tags:
+    - labwc
+    block:
 
-  - name: "Comment out the wf-panel-pi entry in {{ photo_frame_labwc_etc_autostart }}"
-    # RasPiOS concatenates the autostarts and configs
-    # Comment out means converting to an echo command (not sure that # works or will continue to)
-    lineinfile:
-      path: "{{ photo_frame_labwc_etc_autostart }}"
-      regexp: '^(.*) /usr/bin/wf-panel-pi (.*)'
-      line: 'echo Disabled: \1 /usr/bin/wf-panel-pi \2'
-      state: present
-      backrefs: true
-      backup: true
+    - name: Ensure that the user labwc config directory exists
+      file:
+        path: "{{ photo_frame_labwc_config }}"
+        state: directory
+        owner: "{{ photo_frame_user }}"
+        group: "{{ photo_frame_group }}"
+        mode: '0755'
 
-  - name: "Create the file {{ photo_frame_labwc_autostart }}"
-    notify: Restart graphical environment
-    # - Kill wf-panel-pi
-    template:
-      src: autostart.j2
-      dest: "{{ photo_frame_labwc_autostart }}"
-      owner: "{{ photo_frame_user }}"
-      group: "{{ photo_frame_group }}"
-      mode: '0644'
-      backup: true
+    - name: >-
+        Comment out the pcmanfm-pi and wf-panel-pi respawn entries in
+        {{ photo_frame_labwc_etc_autostart }}
+      # RasPiOS concatenates the autostarts and configs
+      # Comment out means converting to an echo command (not sure that # works or will continue to)
+      loop:
+      # - pcmanfm-pi
+      - wf-panel-pi
+      lineinfile:
+        path: "{{ photo_frame_labwc_etc_autostart }}"
+        regexp: "^(/usr/bin/{{ item }} .*)$"
+        line: 'echo Disabled: \1'
+        state: present
+        backrefs: true
+        backup: true
 
-  - name: "Replace the file {{ photo_frame_labwc_rc_xml }}"
-    # Default file on trixie has a config for openbox, which we don't need
-    notify: Restart graphical environment
-    template:
-      src: rc.xml.j2
-      dest: "{{ photo_frame_labwc_rc_xml }}"
-      owner: "{{ photo_frame_user }}"
-      group: "{{ photo_frame_group }}"
-      mode: '0644'
-      backup: true
+    - name: "Create the file {{ photo_frame_labwc_autostart }}"
+      notify: Restart graphical environment
+      # - Kill wf-panel-pi
+      template:
+        src: autostart.j2
+        dest: "{{ photo_frame_labwc_autostart }}"
+        owner: "{{ photo_frame_user }}"
+        group: "{{ photo_frame_group }}"
+        mode: '0644'
+        backup: true
 
-  # - name: Determine the running wf-panel-pi process if it needs to be killed
-  #   when: photo_frame_r_stat.stat.exists and photo_frame_r_line.changed
-  #   register: photo_frame_r_pids
-  #   loop:
-  #   - '^/bin/sh /usr/bin/lwrespawn /usr/bin/wf-panel-pi$'
-  #   - '^/usr/bin/wf-panel-pi$'
-  #   community.general.pids:
-  #     pattern: "{{ item }}"
+    - name: "Replace the file {{ photo_frame_labwc_rc_xml }}"
+      # Default file on trixie has a config for openbox, which we don't need
+      notify: Restart graphical environment
+      template:
+        src: rc.xml.j2
+        dest: "{{ photo_frame_labwc_rc_xml }}"
+        owner: "{{ photo_frame_user }}"
+        group: "{{ photo_frame_group }}"
+        mode: '0644'
+        backup: true
+
+- name: Manual rsync
+  register: photo_frame_r_rsync
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  changed_when: photo_frame_r_rsync.stdout_lines | count > 0
+  notify: Enable and (re)start photo_frame service
+  tags:
+  - sync
+  - rsync
+  - never
+  command:
+    cmd: "{{ photo_frame_rsync_command }}"

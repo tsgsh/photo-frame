@@ -16,7 +16,7 @@ using SSH.
 It has been tested on a Raspberry Pi Zero W, using the on-board WiFi connection using an NFS
 export to hold the photos.
 
-Photo-frame uses the `swayimg` package to display software.
+**photo-frame**uses the `swayimg` package to display software.
 The package should work on other Linux distribution other than RasPiOS Trixie, with the following
 provisos.
 - The distribution must have a Wayland-based graphical environment; X11 is not supported
@@ -41,17 +41,16 @@ Therefore, you should not store any data on the system (or any network devices t
 to).
 
 Furthermore, passwordless `sudo` should be disabled for the login user.
-This is done by default for Raspberry Pi's, where it is normally safe to remove any such entries
-because the login user is also a member of the `sudo` group which has full password-authenticated
-sudo access.
-If you have a different 
-
+This is done by default for Raspberry Pi's running RasPiOS, where it is normally safe to remove any
+such entries because the login user is also a member of the `sudo` group which has full
+password-authenticated sudo access.
+If you have a different operating system, you should perform this manually.
 
 
 ## Pre-requisites
 
 At a minimum you need fixed (or, at least, known) IP addresses for all devices for the installation
-of **aardsound** and fixed addresses for any Snapcast servers.
+of **photo-frame** and fixed addresses for any Snapcast servers.
 If you have that, but no DNS service, then it is probably a good idea to set up `/etc/hosts` entries
 on each device, including the Ansible control node, to map each IP address to a hostname.
 
@@ -84,7 +83,7 @@ See the [**Inventory**](#Ansible-Inventory) section below.
 
 ### Target systems
 
-Aardsound is intended to run on a Linux "control host" against one or more newly
+**photo-frame**is intended to run on a Linux "control host" against one or more newly
 installed Raspberry Pis booting from Micro-SD cards, each with a known IP address that is
 resolvable to a hostname via DNS or `/etc/hosts`.
 MacOS may work as a control host operating system, but this has not been tested.
@@ -122,7 +121,48 @@ Alternative;y, you can create a separate user on the target, such as `ansible`, 
 Details on how to do this are outside the scope of this guide.
 
 For a quick guide to setting up your Raspberry Pi(s) like this, see the
-[Quick Guide to Setting up you Raspberry Pi(s) for Aardsound](../PiSetup.md).
+[Quick Guide to Setting up you Raspberry Pi(s)](../PiSetup.md).
+
+### Storing photos
+Photos can be stored locally: if this is the case, set the Ansible  inventory variable
+`photo_frame_directory` to the path to the directory containing the photos (see 
+[Ansible Inventory](#ansible-inventory) below for examples of how to do this).
+
+Alternatively, photos may be stored on an NFS server (or NAS appliance), in which case you must
+set the inventory variable `photo_frame_nfs_source` to the NFS export containing the photos.
+This should consist of the hostname, fully qualified domain name (FQDN) or IP address of the 
+server, separated from the export path by a colon, for example:
+`my-nas:/photos`, `my-nas.example.com:/photos`, or `192.168.1.10:/photos`.
+By default:
+- The NFS directory is mounted at `/mnt/photos` but this can be changed by setting the inventory
+  variable `photo_frame_nfs_mount` to a different path.
+- `photo_frame_directory` is set to the mount directory, this can be changed by setting it to
+  a different path, or by setting `photo_frame_subdirectory` to a relative path from the mount
+  directory, such as `landscape` for a landscape subdirectory that only holds landscape photos.
+
+These tow 
+
+### Rotation
+By default, **photo-frame** expects a landscape orientation, portrait photos will be cropped
+(but see [Scaliing](#scaling) below).
+If your frame is in a portrait orientation (or even upside down) set the inventory variable
+`photo_frame_rotate` to 90, 270 or even 180.
+
+The rotation angle represents an anti-clockwise rotation relative to the screen or, equivalently,
+a clockwise rotation of the physical screen relative to its normal orientation: if you physically
+rotate the screen clockwise to display photos, set `photo_frame_rotate` to 90.
+
+### Scaling
+**photo-frame** has the following scale modes, which are the modes supported by `swayimg`:
+- **optimal** &ndash; 100% or less to fit to window (default);
+- **width** &ndash; fit image width to window width;
+- **height** &ndash; fit image height to window height;
+- **fit** &ndash; fit to window;
+- **fill** &ndash; crop image to fill the window;
+- **real** &ndash; real size (100%).
+
+To select a mode, set the inventory variable `photo_frame_scale` to one of these values.
+
 
 ## Ansible Inventory
 There are many ways to build an [Ansible inventory](
@@ -135,7 +175,7 @@ suitable for a complex Ansible environment (which is not an issue for *photo-fra
 ### A basic YAML inventory
 Although Ansible supports many inventory formats, we will use one of the built-in ones: YAML.
 This should be saved in the file `/etc/ansible/hosts`, although if you already have an Ansible
-iventory that you don't want to or can't modify, you can save the inventory somewhere else and
+inventory that you don't want to or can't modify, you can save the inventory somewhere else and
 pass the path to the file to the `ansible` or `ansible-playbook` command with the `-i` or
 `--inventory` option.
 
@@ -163,6 +203,17 @@ photo_frame:
     photo_frame_directory: /home/steve/Pictures
     ansible_timeout: 30
 ```
+
+An inventory for 
+
+```YAML
+photo_frame_rsync: true
+# Synchronise nightly on assumption that photo frame is on until at least 00:15am
+photo_frame_rsync_timer: '00:00'
+
+
+```
+
 
 An inventory for two hosts that use different sub-directories on the NAS server, with the scaling
 approach set to fill the screen (and therefore crop top or sides of the photo if it has a different

@@ -12,6 +12,13 @@ argument_specs:
         type: str
         default: wayland-0
         description: The name of the Wayland display to use.
+      photo_frame_output:
+        type: str
+        default: HDMI-A-1
+        description: >-
+          The name of the Wayland output to use.
+
+          For dual-HDMI Raspberry Pi's, HDMI-A-2 is also available
       photo_frame_nfs_source:
         type: str
         description: >-
@@ -72,6 +79,21 @@ argument_specs:
 
 
           Default: primary group of the user with UID 1000
+      photo_frame_rotate:
+        type: str  # can be int
+        choices:
+        -
+        - '90'
+        - '180'
+        - '270'
+        description: >-
+          Anti-clockwise rotation of the desktop and therefore the image relative to the physical
+          screen.
+
+
+          Configures `.config/labwc/autostart` with a `wlr-randr` for the HDMI display with the
+          `--transform` option set to the specified value.
+          If left as a default (none), the command will be removed from the file if present.
       photo_frame_scale:
         type: str
         choices:
@@ -111,7 +133,7 @@ argument_specs:
           so this isn't dangerous.
 
           Default: true for Rasberry Pi systems, false otherwise
-      photo_frame_disable_wf_panel_pi:
+      photo_frame_disable_desktop:
         type: bool
         default: true
         description: >-

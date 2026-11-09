@@ -6,12 +6,16 @@ photo_frame_nfs_options: ro
 photo_frame_directory: >-
   {{
     '/var/local/' ~ photo_frame_service if photo_frame_rsync else
-    photo_frame_nfs_mount if photo_frame_nfs_source != none else
+    photo_frame_nfs_mount if photo_frame_nfs_source != none and
+                             photo_frame_subdirectory == none else
+    [photo_frame_nfs_mount, photo_frame_subdirectory] |
+    pathjoin if photo_frame_nfs_source != none else
     none
   }}
 photo_frame_subdirectory:
 photo_frame_rsync: false
 photo_frame_rsync_timer:
+photo_frame_rotate:
 photo_frame_scale: optimal
 photo_frame_time: 30
 # photo_frame_user and _group have defaults that start as none and are then set by getent
@@ -26,5 +30,6 @@ photo_frame_group: "{{ (ansible_facts.getent_passwd |
                         flatten)[2] |
                         default(none) }}"
 photo_frame_display: 'wayland-0'
+photo_frame_output: 'HDMI-A-1'
 photo_frame_disable_nopasswd: "{{ photo_frame_is_pi }}"
-photo_frame_disable_wf_panel_pi: true
+photo_frame_disable_desktop: true

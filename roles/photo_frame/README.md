@@ -5,10 +5,14 @@ Creates a systemd service to view all files in a specified directory in fullscre
 
 Requires a Wayland-based graphical display.
 
-If the host is a Raspberry Pi host running the `labwc` compositor, the `wf-panel-pi` panel will be
-disabled by default (making the desktop largely useless unless the panel is restarted manually).
-This is because `wf-panel-pi` currently doesn't support auto-hide for the taksk bar, which, 
-therefore, covers part of the screen.
+If the host is a Raspberry Pi host running the `labwc` compositor, then:
+- The `wf-panel-pi` panel will be disabled by default (making the desktop largely useless unless the
+  panel is restarted manually).
+  This is because `wf-panel-pi` currently doesn't support auto-hide for the taksk bar, which, 
+  therefore, covers part of the screen.
+- The desktop background pictures (light and dark mode) will be cleared and the background set
+  to black to avoid a line of desktop pixels along one edge of the image (because `sway-img` does
+  not seem to exactly fill the desktop).
 
 ## Dependencies
 
@@ -17,13 +21,13 @@ therefore, covers part of the screen.
 
 ## Variables
 
-#### `photo_frame_display`=*string*
+#### `photo_frame_display` = *string*
 
 The name of the Wayland display to use.
 
 Default: wayland-0
 
-#### `photo_frame_nfs_source`=*host*:*path*
+#### `photo_frame_nfs_source` = *host*:*path*
 
 An NFS export to be mounted (presumably containing the photos to use but this is not checked).
 This will be mounted using a systemd mount unit that is bound to the the systemd unit that
@@ -32,19 +36,19 @@ sequencing issues with the mount and the service startup.
 
 Default: `none`  (no NFS mount will be performed)
 
-#### `photo_frame_nfs_mount`=*path*
+#### `photo_frame_nfs_mount` = *path*
 
 The mount point for the NFS volume.
 
 Default: `none` (no NFS mount will be performed)
 
-#### `photo_frame_nfs_options`=*string*
+#### `photo_frame_nfs_options` = *string*
 
 The options for the NFS mount.
 
 Default: ro
 
-#### `photo_frame_directory`=*path*
+#### `photo_frame_directory` = *path*
 
 The directory containing the photos to show
 
@@ -52,19 +56,19 @@ Default: `/var/local/photo-frame` if `pnoto_frame_rsync` is true,
 else *`pnoto_frame_nfs_mount`* if `pnoto_frame_nfs_source` is defined,
 otherwise `none` (which is not valid)
 
-#### `photo_frame_user`=*string*
+#### `photo_frame_user` = *string*
 
 The name of the user running the desktop display
 
 Default: user with UID 1000
 
-#### `photo_frame_group`=*string*
+#### `photo_frame_group` = *string*
 
 The group for the user running the desktop display 
 
 Default: primary group of the user with UID 1000
 
-<!-- #### `photo_frame_scale`=none|shrink|full|crop
+<!-- #### `photo_frame_scale` = none|shrink|full|crop
 
 How to scale photos to fit the screen
 
@@ -73,7 +77,7 @@ The value of the `imv` scaling mode
 
 Default: crop
  -->
-#### `photo_frame_scale`=optimal|width|height|fit|fill|real
+#### `photo_frame_scale` = optimal|width|height|fit|fill|real
 
 How to scale photos to fit the screen.
 
@@ -89,7 +93,7 @@ The value of the `imv` slideshow duration
 
 Default: 30
  -->
-#### `photo_frame_time`**float*
+#### `photo_frame_time` = *float*
 
 The number of seconds before the photo changes
 
@@ -99,7 +103,7 @@ The value of the
 
 Default: 30
 
-#### `photo_frame_disable_nopasswd`=false|true
+#### `photo_frame_disable_nopasswd` = true | false
 
 Disable passwordless `sudo` for the user displaying the photos by commenting out any lines in files
 in `/etc/sudoers.d` that apply to that user and have `NOPASSWD:` in them.
@@ -108,15 +112,18 @@ By default, on RasPiOS, the default login user (*uid*=1000) is a member of the `
 has `sudo` access to all commands (with a password prompt) in `/etc/sudoers`, so this isn't
 dangerous.
 
-Default: true for Rasberry Pi systems, false otherwise
+Default: `true` for Rasberry Pi systems, `false` otherwise
 
-#### `photo_frame_disable_wf_panel_pi`=false|true
+#### `photo_frame_disable_desktop` = true | false
 
-Disable `wf-panel-pi` by modifying the file `/etc/config/labwc/autostart` modifying the line
+<!-- Disable `pcmanfm-pi` and `wf-panel-pi` by modifying the file `/etc/config/labwc/autostart` modifying -->
+the lines
+<!-- /usr/bin/lwrespawn /usr/bin/pcmanfm-pi & -->
 ```
 /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
 ```
 to 
+<!-- echo Disabled: /usr/bin/lwrespawn /usr/bin/pcmanfm-pi & -->
 ```
 echo Disabled: /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
 ```
@@ -126,4 +133,4 @@ simulating that key press in `~/.config/labwc/autostart`.
 This has no effect if the target host is not a Raspberry Pi or the installed OS is RasPiOS
 'Bookworm' or earlier.
 
-Default: true
+Default: `true`

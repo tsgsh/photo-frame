@@ -57,6 +57,7 @@ photo_frame_rsync_command: >-
 
 # need a constant default for role validation
 photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists | default(false) }}"
+photo_frame_is_labwc: "{{ photo_frame_r_pid.pids != [] }}"
 photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"
 photo_frame_uid: "{{ (ansible_facts.getent_passwd |
                       dict2items |
@@ -66,7 +67,7 @@ photo_frame_home: "{{ (ansible_facts.getent_passwd |
                        dict2items |
                        map(attribute='value') |
                        flatten)[4] }}"
-photo_frame_panel_pids: "{{ photo_frame_r_pids.results | map(attribute='pids') | flatten }}"
+photo_frame_labwc_pid: "{{ photo_frame_r_pid.pids.0 }}"  # there can be only one
 photo_frame_labwc_config: "{{ photo_frame_home + '/.config/labwc' }}"
 photo_frame_labwc_etc_autostart: /etc/xdg/labwc/autostart
 photo_frame_labwc_autostart: "{{ photo_frame_labwc_config + '/autostart' }}"
@@ -76,3 +77,5 @@ photo_frame_labwc_keybind: |  # https://github.com/labwc/labwc/pull/2633
     <action name="HideCursor" />
     <action name="WarpCursor" x="-1" y="-1" />
   </keybind>
+photo_frame_pcmanfm_config: "{{ photo_frame_home + '/.config/pcmanfm/default' }}"
+photo_frame_pcmanfm_desktop: "{{ photo_frame_pcmanfm_config + '/desktop-items-0' }}"

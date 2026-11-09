@@ -1,0 +1,21 @@
+- hosts: preston
+  gather_facts: false
+  become: true
+  tasks:
+  - register: z
+    community.general.pids:
+      name: labwc
+  - debug:
+      var:  z
+  - register: y
+    slurp:
+      path: "{{ '/proc/' ~ z.pids.0 ~ '/environ' }}"
+  - debug:
+      msg:  "{{ y.content |
+                b64decode |
+                split('\0') |
+                select('match', 'DBUS_SESSION_BUS_ADDRESS') |
+                first |
+                split('=', 1) |
+                last
+            }}"
