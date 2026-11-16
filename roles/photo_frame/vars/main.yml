@@ -1,8 +1,10 @@
 ---
-photo_frame_command: "/usr/bin/swayimg  {{ photo_frame_directory }}"
+# need a constant default for ole validation
 photo_frame_packages:
+- cage
+- seatd
 - swayimg
-- wtype
+# - wtypePHASE 3 definitely
 photo_frame_scales:
 - optimal
 - width
@@ -10,37 +12,72 @@ photo_frame_scales:
 - fit
 - fill
 - real
-photo_frame_service_name: photo-frame
+
+# paths that we will use; these two may be the same
+photo_frame_nfs_path: "{{ [photo_frame_nfs_mount, photo_frame_subdirectory] |
+                          reject('eq', none) |
+                          join('/') }}"
+photo_frame_dir_path: "{{ [photo_frame_directory, photo_frame_subdirectory] |
+                          reject('eq', none) |
+                          join('/') }}"
+
+# systemd mount
 # Ansible doesn't yet implement a systemd-escape filter
 # https://github.com/ansible-collections/community.general/issues/2601
 # anything other than a hyphen is a corner case we aren't worrying about
-photo_frame_mount_name: "{{ photo_frame_nfs_mount[1:] |
-                            replace('-', '\\x2d') |
-                            replace('/', '-') }}"
-photo_frame_service_template: service.j2
-photo_frame_mount_template: mount.j2
+photo_frame_mount: "{{ photo_frame_nfs_mount[1:] | replace('-', '\\x2d') | replace('/', '-') }}"
+
+# user info
+photo_frame_uid: "{{ photo_frame_r_user.uid }}"
+photo_frame_home: "/home/{{ photo_frame_user }}"
+photo_frame_bin: "{{ photo_frame_home }}/bin"
+
+# system systemd templates
+photo_frame_getty_service_template: getty.service.j2
+photo_frame_restart_service_template: restart.service.j2
+photo_frame_restart_path_template: restart.path.j2
+# user systemd templates
+photo_frame_rsync_service_template: rsync.service.j2
+photo_frame_rsync_timer_template: rsync.timer.j2
+# other templates
 photo_frame_config_template: config.j2
-photo_frame_service_file: "/etc/systemd/system/{{ photo_frame_service_name }}.service"
-photo_frame_mount_file: "/etc/systemd/system/{{ photo_frame_mount_name }}.mount"
-photo_frame_config_file: /etc/xdg/swayimg/config
-# need a constant default for role validation
-photo_frame_is_pi: "{{ photo_frame_r_raspinfo.stat.exists | default(false) }}"
-photo_frame_sudoers: "{{ photo_frame_r_find.files | map(attribute='path') }}"
-photo_frame_uid: "{{ (ansible_facts.getent_passwd |
-                      dict2items |
-                      map(attribute='value') |
-                      flatten)[1] }}"
-photo_frame_home: "{{ (ansible_facts.getent_passwd |
-                       dict2items |
-                       map(attribute='value') |
-                       flatten)[4] }}"
-photo_frame_panel_pids: "{{ photo_frame_r_pids.results | map(attribute='pids') | flatten }}"
-photo_frame_labwc_config: "{{ photo_frame_home + '/.config/labwc' }}"
-photo_frame_labwc_etc_autostart: /etc/xdg/labwc/autostart
-photo_frame_labwc_autostart: "{{ photo_frame_labwc_config + '/autostart' }}"
-photo_frame_labwc_rc_xml: "{{ photo_frame_labwc_config + '/rc.xml' }}"
-photo_frame_labwc_keybind: |  # https://github.com/labwc/labwc/pull/2633
-  <keybind key="A-W-h">
-    <action name="HideCursor" />
-    <action name="WarpCursor" x="-1" y="-1" />
-  </keybind>
+photo_frame_shell_sh_template: shell.sh.j2
+photo_frame_kiosk_sh_template: kiosk.sh.j2
+photo_frame_photo_sh_template: photo.sh.j2
+photo_frame_rsync_sh_template: rsync.sh.j2
+# system systemd template destinatons
+photo_frame_getty_service_file: "/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+photo_frame_restart_service_file: /etc/systemd/system/photo-frame-restart.service
+photo_frame_restart_path_file: /etc/systemd/system/photo-frame-restart.path
+# system user template destinations
+photo_frame_systemd_user_dir: "{{ photo_frame_home }}/.config/systemd/user"
+photo_frame_service_file: "{{ photo_frame_systemd_user_dir }}/photo-frame.service"
+photo_frame_rsync_service_file: "{{ photo_frame_systemd_user_dir }}/photo-frame-rsync.service"
+photo_frame_rsync_timer_file: "{{ photo_frame_systemd_user_dir }}/photo-frame-rsync.timer"
+# other template destinations
+photo_frame_config_file: "{{ photo_frame_home }}/.config/swayimg/config"
+photo_frame_shell_sh_file: /usr/local/bin/photo-frame-shell.sh
+photo_frame_kiosk_sh_file: "{{ photo_frame_bin }}/photo-frame-kiosk.sh"
+photo_frame_photo_sh_file: "{{ photo_frame_bin }}/photo-frame.sh"
+photo_frame_rsync_sh_file: "{{ photo_frame_bin }}/photo-frame-rsync.sh"
+photo_frame_state_dir: "/run/{{ photo_frame_uid }}/state"
+photo_frame_systemd_user_environment:
+  DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ photo_frame_uid }}/bus"
+  XDG_RUNTIME_DIR: "/run/user/{{ photo_frame_uid }}"
+
+photo_frame_rsync_command: >-
+  rsync
+  --archive
+  --itemize-changes
+  --delete
+  --out-format='%i'
+  {{ photo_frame_nfs_path }}/
+  {{ photo_frame_dir_path }}/
+photo_frame_rsync_touch_file: "{{ photo_frame_home }}/photo-frame-rsync.changed"
+
+photo_frame_dm_target_state: "{{ photo_frame_r_list_units.stdout |
+                                 community.general.jc('systemctl') |
+                                 selectattr('unit', 'eq', 'display-manager.target') |
+                                 map(attribute='active') |
+                                 first |
+                                 default(none) }}"

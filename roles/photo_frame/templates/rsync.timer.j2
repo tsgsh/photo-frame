@@ -1,0 +1,10 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Photo frame rsync service timer
+
+[Timer]
+OnCalendar={{ photo_frame_rsync_timer }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

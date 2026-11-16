@@ -1,5 +1,5 @@
 ---
-- name: Set up swayimg-based digital photo frame
+- name: Set up swayimg-based digital photo frame running under cage
   hosts: photo_frame
   become: true
   gather_subset:
