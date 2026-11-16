@@ -1,0 +1,23 @@
+#!/bin/sh
+# the state directory is created when photo-frame is installed
+STATE={{ photo_frame_state_dir }}
+
+NOW=$(date +%s)
+COUNT=1
+
+if [ -f "$STATE/restart-ts" ]; then
+    LAST=$(cat "$STATE/restart-ts")
+    if [ $((NOW - LAST)) -lt {{ photo_frame_restart_window }} ]; then
+        COUNT=$(( $(cat "$STATE/restart-count" 2>/dev/null || echo 0) + 1 ))
+    fi
+fi
+
+echo "$NOW" > "$STATE/restart-ts"
+echo "$COUNT" > "$STATE/restart-count"
+
+if [ "$COUNT" -gt {{ photo_frame_restart_limit }} ]; then
+    logger -t photo-frame "Restart limit exceeded"
+    exit 1
+fi
+
+exec /usr/bin/cage -- {{ photo_frame_photo_sh_file }}

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+{% if photo_frame_rotate != none %}
+# Wait until output management is available
+until wlr-randr --output {{ photo_frame_output }} --transform {{ photo_frame_rotate }}
+do
+    sleep 0.1
+done
+
+{% endif %}
+exec /usr/bin/swayimg {{ photo_frame_dir_path }}

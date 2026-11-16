@@ -1,47 +1,75 @@
 ---
-# - name: Reconfigure labwc
-#   become: true
-#   become_user: "{{ photo_frame_user }}"
-#   when: photo_frame_labwc_pid != none
-#   changed_when: true
-#   environment:
-#     LABWC_PID: "{{ photo_frame_labwc_pid }}"
-#   command:
-#     cmd: /usr/bin/labwc --reconfigure
-
-# - name: Cannot reconfigure labwc
-#   listen: Reconfigure labwc
-#   when: photo_frame_labwc_pid == none
-#   debug:
-#     msg: >-
-#       The PIDs assosciated with running labwc instances are:
-#       [{{ photo_frame_labwc_pids | join(', ') }}].
-#       There can be only one.
-
-# - name: Kill wf-panel-pi
-#   loop: "{{ photo_frame_panel_pids }}"
-#   changed_when: true
-#   command:
-#     cmd: "kill {{ item }}"
-
-# - name: Reload systemd
-#   systemd:
-#     daemon_reload: true
-
-- name: Restart graphical environment
-  loop:
-  - multi-user
-  - graphical
-  changed_when: true
-  command:
-    cmd: "systemctl isolate {{ item }}.target"  # noqa: command-instead-of-module
-
-- name: Enable and (re)start photo_frame service
+- name: Reload systemd  # for system unit file changes
   listen:
-  - Enable and (re)start photo_frame service
-  - Restart graphical environment
+  - Reload systemd
+  - Enable and (re)start getty@tty1.service
+  - Enable restart photo-frame-restart.service
+  - Enable and start photo-frame-restart.path
   systemd:
-    name: "{{ photo_frame_service_name }}.service"
+    daemon_reload: true
+
+- name: Enable and start automount
+  systemd:
+    name: "{{ photo_frame_mount }}.automount"
+    state: started
+    enabled: true
+
+- name: Initial rsync
+  register: photo_frame_r_rsync
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  changed_when: photo_frame_r_rsync.stdout_lines | count > 0
+  command:
+    cmd: "{{ photo_frame_rsync_command }}"
+
+- name: Enable and (re)start getty@tty1.service
+  systemd:
+    name: getty@tty1.service
     state: restarted
     enabled: true
+
+- name: Enable photo-frame-restart.service
+  systemd:
+    name: photo-frame-restart.service
+    enabled: true
+    masked: false
+
+- name: Enable and start photo-frame-restart.path
+  systemd:
+    name: photo-frame-restart.path
+    state: started
+    enabled: true
+    masked: false
+
+- name: Reload systemd  # for user unit file changes
+  listen:
+  - Enable and (re)start photo-frame.service
+  - Enable photo-frame-rsync.service
+  - Enable and start photo-frame-rsync.timer
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  environment: "{{ photo_frame_systemd_user_environment }}"
+  systemd:
     daemon_reload: true
+    scope: user
+
+- name: Enable photo-frame-rsync.service
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  environment: "{{ photo_frame_systemd_user_environment }}"
+  systemd:
+    name: photo-frame-rsync.service
+    scope: user
+    enabled: true
+    masked: false
+
+- name: Enable and start photo-frame-rsync.timer
+  become: true
+  become_user: "{{ photo_frame_user }}"
+  environment: "{{ photo_frame_systemd_user_environment }}"
+  systemd:
+    name: photo-frame-rsync.timer
+    scope: user
+    state: started
+    enabled: true
+    masked: false

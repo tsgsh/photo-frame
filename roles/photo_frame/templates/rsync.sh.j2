@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+if [ -n "$({{ photo_frame_rsync_command}})" ]
+then
+    touch {{ photo_frame_rsync_touch_file }}
+fi

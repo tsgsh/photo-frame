@@ -1,0 +1,7 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Photo frame rsync service
+
+[Service]
+Type=oneshot
+ExecStart={{ photo_frame_rsync_sh_file }}

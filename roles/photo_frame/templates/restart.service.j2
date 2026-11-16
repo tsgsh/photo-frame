@@ -1,0 +1,8 @@
+#jinja2: lstrip_blocks: True
+[Unit]
+Description=Restart getty@tty1.service after rsync updates to {{ photo_frame_directory }}
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart getty@tty1.service
+ExecStartPost=/usr/bin/rm -f {{ photo_frame_rsync_touch_file }}

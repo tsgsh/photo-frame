@@ -1,78 +1,57 @@
 # `photo_frame` role
 
-Set up a digital photo frame using the **swayimg** image vieweer.
-Creates a systemd service to view all files in a specified directory in fullscreen mode.
+Set up a digital photo frame using the **swayimg** image viewer running under **cage**.
 
-Requires a Wayland-based graphical display.
-
-If the host is a Raspberry Pi host running the `labwc` compositor, the `wf-panel-pi` panel will be
-disabled by default (making the desktop largely useless unless the panel is restarted manually).
-This is because `wf-panel-pi` currently doesn't support auto-hide for the taksk bar, which, 
-therefore, covers part of the screen.
+Requires a target system without an active `systemd` graphical target (i.e. a text-mode console).
 
 ## Dependencies
 
+- **ansible.posix** collection (if using NFS)
 - **community.general** collection
-- **Wayland** on the target host
+- Python `jc` package
 
 ## Variables
 
-#### `photo_frame_display`=*string*
+#### `photo_frame_user` = *string*
 
-The name of the Wayland display to use.
+The name of the passowrdless user that will be auto-logged on to run
+`cage` and `swayimg`.
 
-Default: wayland-0
+Default: photo-frame
 
-#### `photo_frame_nfs_source`=*host*:*path*
+#### `photo_frame_group` = *string*
 
-An NFS export to be mounted (presumably containing the photos to use but this is not checked).
-This will be mounted using a systemd mount unit that is bound to the the systemd unit that
-runs feh
-sequencing issues with the mount and the service startup.
+The name of the group for the passowrdless user that will be auto-logged on to run
+`cage` and `swayimg`.
 
-Default: `none`  (no NFS mount will be performed)
+Default: the value of `photo_frame_user`
 
-#### `photo_frame_nfs_mount`=*path*
+#### `photo_frame_nfs_source` = *host*:*path*
+
+An NFS export to be automounted (presumably containing the photos to use but this is not checked).
+
+Default: `none`  (no NFS automount will be defined)
+
+#### `photo_frame_nfs_mount` = *path*
 
 The mount point for the NFS volume.
 
-Default: `none` (no NFS mount will be performed)
+Default: `none` (no NFS automount will be defformed)
 
-#### `photo_frame_nfs_options`=*string*
+#### `photo_frame_nfs_options` = *string*
 
 The options for the NFS mount.
 
 Default: ro
 
-#### `photo_frame_directory`=*path*
+#### `photo_frame_directory` = *path*
 
 The directory containing the photos to show
 
-Default: *`pnoto_frame_nfs_mount`* if *`pnoto_frame_nfs_source`* is defined,
+Default: *`photo_frame_nfs_mount`* if *`photo_frame_nfs_source`* is defined,
 otherwise `none` (which is not valid)
 
-#### `photo_frame_user`=*string*
-
-The name of the user running the desktop display
-
-Default: user with UID 1000
-
-#### `photo_frame_group`=*string*
-
-The group for the user running the desktop display 
-
-Default: primary group of the user with UID 1000
-
-<!-- #### `photo_frame_scale`=none|shrink|full|crop
-
-How to scale photos to fit the screen
-
-The value of the `imv` scaling mode
-([`-s` option](https://manpages.debian.org/trixie/imv/imv-wayland.1.en.html))
-
-Default: crop
- -->
-#### `photo_frame_scale`=optimal|width|height|fit|fill|real
+#### `photo_frame_scale` = optimal|width|height|fit|fill|real
 
 How to scale photos to fit the screen.
 
@@ -81,14 +60,7 @@ setting in the **viewer** sectiono f the `swayimg` configuration file (`/etc/xdg
 
 Default: optimal
 
-<!-- #### `photo_frame_time`*integer**
-
-The value of the `imv` slideshow duration
-([`-t` option](https://manpages.debian.org/trixie/imv/imv-wayland.1.en.html))
-
-Default: 30
- -->
-#### `photo_frame_time`**float*
+#### `photo_frame_time` = *float*
 
 The number of seconds before the photo changes
 
@@ -98,31 +70,12 @@ The value of the
 
 Default: 30
 
-#### `photo_frame_disable_nopasswd`=false|true
+#### `photo_frame_restart_limit` = *int*
+How many times the photo frame can repeatedly restart before it exits to the shell
 
-Disable passwordless `sudo` for the user displaying the photos by commenting out any lines in files
-in `/etc/sudoers.d` that apply to that user and have `NOPASSWD:` in them.
+Default: 5
 
-By default, on RasPiOS, the default login user (*uid*=1000) is a member of the `sudo` group, which
-has `sudo` access to all commands (with a password prompt) in `/etc/sudoers`, so this isn't
-dangerous.
+#### `photo_frame_restart_window` = *int*
+The time window during which consecutive restarts are regarded as "repeated".
 
-Default: true for Rasberry Pi systems, false otherwise
-
-#### `photo_frame_disable_wf_panel_pi`=false|true
-
-Disable `wf-panel-pi` by modifying the file `/etc/config/labwc/autostart` modifying the line
-```
-/usr/bin/lwrespawn /usr/bin/wf-panel-pi &
-```
-to 
-```
-echo Disabled: /usr/bin/lwrespawn /usr/bin/wf-panel-pi &
-```
-The mouse cursor is hidden by creating a key-binding to do this in `~/.config/labwc/rc.xml` and
-simulating that key press in `~/.config/labwc/autostart`.
-
-This has no effect if the target host is not a Raspberry Pi or the installed OS is RasPiOS
-'Bookworm' or earlier.
-
-Default: true
+Default: 300
